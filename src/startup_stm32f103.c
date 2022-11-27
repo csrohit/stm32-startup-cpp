@@ -19,6 +19,7 @@ extern uint32_t _ebss;
 int main(void);
 
 void Reset_Handler(void);
+void Default_Handler(void);
 
 // Weak function prototypes for the vector table so that they can easily be redefined
 void NMI_Handler                (void) __attribute__ ((weak, alias("Default_Handler")));

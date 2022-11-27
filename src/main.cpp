@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stm32f1xx.h>
 
+// void ms_delay(int ms);
+
 void ms_delay(int ms)
 {
   while (ms-- > 0)

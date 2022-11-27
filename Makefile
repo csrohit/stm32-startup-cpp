@@ -10,7 +10,7 @@ FLOAT_ABI	= soft
 
 # compiler option
 OPT			:= -Os
-CSTD		?= -std=c99
+CSTD		?= c11
 CXXSTD		:= c++17
 
 # Project specific configuration
@@ -33,9 +33,9 @@ GDB			:= $(PREFIX)-gdb
 
 # collect source files and generate object files
 SRCS 		:= $(shell find $(SRC_DIR) -name '*.cpp' -or -name '*.c')	
-OBJS 		:= $(SRCS:%.c=$(BUILD_DIR)/%.o)				# replace .c with .o
-OBJS 		+= $(OBJS:%.cpp=$(BUILD_DIR)/%.o)				# replace .c with .o
-
+# SRCS 		:= src/main.cpp src/startup_stm32f103.c	
+OBJS 		:= $(addsuffix .o,$(basename $(SRCS)))			# replace .c with .o
+OBJS 		:= $(addprefix $(BUILD_DIR)/,$(OBJS))			# replace .c with .o
 
 
 # Define stm32 family macro
@@ -44,10 +44,25 @@ DEFS		+= -D$(MCU_FAMILY)
 # header library include flsgs
 INC_FLAGS 	= $(addprefix -I,$(INC_DIRS))
 
-MACH=cortex-m3
-CFLAGS= -c -mcpu=$(MACH) -mthumb -mfloat-abi=soft -Wall -O0 -Iinclude $(DEFS)
-LDFLAGS= -mcpu=$(MACH) -mthumb -mfloat-abi=soft --specs=nosys.specs -T stm32f1.ld -Wl,-Map=$(TARGET).map -Iinclude $(DEFS)
-CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
+
+# Target-specific flags
+CPU_FLAGS	?= -mfloat-abi=$(FLOAT_ABI) -m$(INSTR_SET) -mcpu=$(CPU)
+
+CFLAGS		=$(CPU_FLAGS) $(OPT) $(DEFS) $(INC_FLAGS)
+CXXFLAGS 	:=$(CFLAGS) -fno-exceptions -fno-rtti
+
+CFLAGS		+= --specs=nosys.specs 
+CXXFLAGS	+= --specs=nosys.specs 
+
+# Warning options for C and CXX compiler
+CFLAGS		+= -Wall -Wextra -Wundef -Wshadow -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
+CXXFLAGS	+= -Wall -Wextra -Wundef -Wshadow -Wredundant-decls -Weffc++
+
+
+LDFLAGS		=$(CPU_FLAGS) $(DEFS) $(INC_FLAGS)
+LDFLAGS		+= --specs=nosys.specs
+LDFLAGS		+= -T $(LDSCRIPT)
+LDFLAGS		+= -Wl,-Map=$(basename $@).map
 
 all: bin size
 size: $(BUILD_DIR)/$(TARGET).size
@@ -64,28 +79,30 @@ list: $(BUILD_DIR)/$(TARGET).list
 $(BUILD_DIR)/%.o:%.c
 	@mkdir -p $(dir $@)
 	@echo "CC" $< " ==> " $@
-	$(CC) $(CFLAGS) -o $@ -c $<
+	@$(CC) $(CFLAGS) -o $@ -c $<
 
 $(BUILD_DIR)/%.o:%.cpp
 	@mkdir -p $(dir $@)
 	@echo "CXX" $< " ==> " $@
-	$(CXX) $(CXXFLAGS) -o $@ -c $<
+	@$(CXX) $(CXXFLAGS) -o $@ -c $<
 	
 $(BUILD_DIR)/$(TARGET).elf: $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^
+	@echo "Linking sources into "$@
+	@$(CC) $(LDFLAGS) -o $@ $^
 
 %.size: %.elf
-	@echo "Output code size:"
-	@$(SIZE) -A -d $(*).elf | egrep 'isr_vector|text|data|bss' | awk ' \
-    function human(x) { \
-        if (x<1000) {return x} else {x/=1024} \
-        s="kMGTEPZY"; \
-        while (x>=1000 && length(s)>1) \
-            {x/=1024; s=substr(s,2)} \
-        return int(x+0.5) substr(s,1,1) \
-    } \
-	{printf("%-15s %-8s\n", $$1, human($$2))} \
-'
+	@$(SIZE) $<
+# 	@echo "Output code size:"
+# 	@$(SIZE) -A -d $(*).elf | egrep 'isr_vector|text|data|bss' | awk ' \
+#     function human(x) { \
+#         if (x<1000) {return x} else {x/=1024} \
+#         s="kMGTEPZY"; \
+#         while (x>=1000 && length(s)>1) \
+#             {x/=1024; s=substr(s,2)} \
+#         return int(x+0.5) substr(s,1,1) \
+#     } \
+# 	{printf("%-15s %-8s\n", $$1, human($$2))} \
+# '
 
 
 flash: bin
@@ -93,7 +110,7 @@ flash: bin
 	
 
 clean:
-	rm -rf build/*
+	rm -rf build
 
 load:
 
