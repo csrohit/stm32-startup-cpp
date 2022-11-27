@@ -53,8 +53,8 @@ CXXFLAGS 	:=$(CFLAGS) -fno-exceptions -fno-rtti
 LDFLAGS		?=$(CPU_FLAGS)
 
 CFLAGS		+= -nostdlib -fno-tree-loop-distribute-patterns
-CXXFLAGS	+= -nostdlib
-LDFLAGS		+= -nostdlib
+CXXFLAGS	+= -nostdlib -fno-tree-loop-distribute-patterns
+LDFLAGS		+= -nostdlib -fno-tree-loop-distribute-patterns
 
 
 
