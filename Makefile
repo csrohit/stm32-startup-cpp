@@ -15,7 +15,7 @@ CXXSTD		:= c++17
 
 # Project specific configuration
 BUILD_DIR 	:= build
-BUILD_TYPE	?= Debug 		# Debug | Release
+BUILD_TYPE	?= Debug
 SRC_DIR 	:= src
 INC_DIRS	= include
 
@@ -33,7 +33,6 @@ GDB			:= $(PREFIX)-gdb
 
 # collect source files and generate object files
 SRCS 		:= $(shell find $(SRC_DIR) -name '*.cpp' -or -name '*.c')	
-# SRCS 		:= src/main.cpp src/startup_stm32f103.c	
 OBJS 		:= $(addsuffix .o,$(basename $(SRCS)))			# replace .c with .o
 OBJS 		:= $(addprefix $(BUILD_DIR)/,$(OBJS))			# replace .c with .o
 
@@ -48,19 +47,23 @@ INC_FLAGS 	= $(addprefix -I,$(INC_DIRS))
 # Target-specific flags
 CPU_FLAGS	?= -mfloat-abi=$(FLOAT_ABI) -m$(INSTR_SET) -mcpu=$(CPU)
 
-CFLAGS		=$(CPU_FLAGS) $(OPT) $(DEFS) $(INC_FLAGS)
+CPPFLAGS	?=$(DEFS) $(INC_FLAGS)
+CFLAGS		?=$(CPU_FLAGS) $(OPT)
 CXXFLAGS 	:=$(CFLAGS) -fno-exceptions -fno-rtti
+LDFLAGS		?=$(CPU_FLAGS)
 
-CFLAGS		+= --specs=nosys.specs 
-CXXFLAGS	+= --specs=nosys.specs 
+CFLAGS		+= -nostdlib -fno-tree-loop-distribute-patterns
+CXXFLAGS	+= -nostdlib
+LDFLAGS		+= -nostdlib
+
+
+
 
 # Warning options for C and CXX compiler
 CFLAGS		+= -Wall -Wextra -Wundef -Wshadow -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
-CXXFLAGS	+= -Wall -Wextra -Wundef -Wshadow -Wredundant-decls -Weffc++
+CXXFLAGS	+= -Wall -Wextra -Wundef -Wshadow -Wredundant-decls -Weffc++ -Werror
 
 
-LDFLAGS		=$(CPU_FLAGS) $(DEFS) $(INC_FLAGS)
-LDFLAGS		+= --specs=nosys.specs
 LDFLAGS		+= -T $(LDSCRIPT)
 LDFLAGS		+= -Wl,-Map=$(basename $@).map
 
@@ -79,12 +82,12 @@ list: $(BUILD_DIR)/$(TARGET).list
 $(BUILD_DIR)/%.o:%.c
 	@mkdir -p $(dir $@)
 	@echo "CC" $< " ==> " $@
-	@$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ -c $<
 
 $(BUILD_DIR)/%.o:%.cpp
 	@mkdir -p $(dir $@)
 	@echo "CXX" $< " ==> " $@
-	@$(CXX) $(CXXFLAGS) -o $@ -c $<
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ -c $<
 	
 $(BUILD_DIR)/$(TARGET).elf: $(OBJS)
 	@echo "Linking sources into "$@
@@ -108,10 +111,9 @@ $(BUILD_DIR)/$(TARGET).elf: $(OBJS)
 flash: bin
 	st-flash write $(BUILD_DIR)/$(TARGET).bin 0x8000000
 	
+debug: CFLAGS 		+= -g -gdwarf-2
+debug: CXXFLAGS 	+= -g -gdwarf-2
+debug: all
 
 clean:
 	rm -rf build
-
-load:
-
-	openocd -f board/stm32f4discovery.cfg 

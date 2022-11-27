@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stm32f1xx.h>
+#include <gpio.hpp>
 
-// void ms_delay(int ms);
 
 void ms_delay(int ms)
 {
@@ -15,12 +15,12 @@ void ms_delay(int ms)
 
 int main(void)
 {
-  RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;
-  GPIOC->CRH |= 0x02 << ((13 - 8) << 2);
-
-  while(1){
-    GPIOC->ODR ^= 1U << 13;
-		ms_delay(1000U);
+  GPIO::enable_PortC();
+  GPIO::setMode(GPIOC, GPIO::PIN_13,GPIO::OUTPUT_2MHZ);
+  GPIO::setConfig(GPIOC, GPIO::PIN_13,GPIO::OUTPUT_PUSH_PULL);
+  while (1)
+  {
+    GPIO::toggle(GPIOC, GPIO::PIN_13);
+    ms_delay(1000U);
   }
-
 }
