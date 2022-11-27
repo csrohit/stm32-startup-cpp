@@ -52,11 +52,10 @@ CFLAGS		?=$(CPU_FLAGS) $(OPT)
 CXXFLAGS 	:=$(CFLAGS) -fno-exceptions -fno-rtti
 LDFLAGS		?=$(CPU_FLAGS)
 
-CFLAGS		+= -nostdlib -fno-tree-loop-distribute-patterns
-CXXFLAGS	+= -nostdlib -fno-tree-loop-distribute-patterns
-LDFLAGS		+= -nostdlib -fno-tree-loop-distribute-patterns
-
-
+# Do not link stdlib with executable
+CFLAGS		+= -nostdlib -fno-tree-loop-distribute-patterns -fdata-sections -ffunction-sections
+CXXFLAGS	+= -nostdlib -fno-tree-loop-distribute-patterns -fdata-sections -ffunction-sections
+LDFLAGS		+= -nostdlib -fno-tree-loop-distribute-patterns 
 
 
 # Warning options for C and CXX compiler
@@ -75,6 +74,10 @@ hex: $(BUILD_DIR)/$(TARGET).hex
 srec: $(BUILD_DIR)/$(TARGET).srec
 list: $(BUILD_DIR)/$(TARGET).list
 
+
+%.size: %.elf
+	@$(SIZE) $<
+
 %.bin: %.elf
 	@echo "COPY " $< " => " $@
 	@$(OBJCOPY) -Obinary $(*).elf $(*).bin
@@ -92,20 +95,6 @@ $(BUILD_DIR)/%.o:%.cpp
 $(BUILD_DIR)/$(TARGET).elf: $(OBJS)
 	@echo "Linking sources into "$@
 	@$(CC) $(LDFLAGS) -o $@ $^
-
-%.size: %.elf
-	@$(SIZE) $<
-# 	@echo "Output code size:"
-# 	@$(SIZE) -A -d $(*).elf | egrep 'isr_vector|text|data|bss' | awk ' \
-#     function human(x) { \
-#         if (x<1000) {return x} else {x/=1024} \
-#         s="kMGTEPZY"; \
-#         while (x>=1000 && length(s)>1) \
-#             {x/=1024; s=substr(s,2)} \
-#         return int(x+0.5) substr(s,1,1) \
-#     } \
-# 	{printf("%-15s %-8s\n", $$1, human($$2))} \
-# '
 
 
 flash: bin
