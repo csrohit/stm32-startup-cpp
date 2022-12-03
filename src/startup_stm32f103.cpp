@@ -2,6 +2,7 @@
 // See: RM0008 10.1.2 Interrupt and exception vectors, Table 63. Vector table for other STM32F10xxx devices
 
 #include <stdint.h>
+#include <algorithm>
 
 #define SRAM_START 0x20000000U
 #define SRAM_SIZE (20U * 1024U) // 20KB
@@ -20,8 +21,9 @@ int main(void);
 
 extern "C"
 {
-  void Reset_Handler(void);
+  [[noreturn]] void Reset_Handler(void);
   void Default_Handler(void);
+  void *memcpy(void *dest, const void *src, size_t n);
 }
 
 // Weak function prototypes for the vector table so that they can easily be redefined
@@ -182,25 +184,29 @@ void Default_Handler(void)
 }
 
 // Command: reset memory and restart user program
-void Reset_Handler(void)
+[[noreturn]] void Reset_Handler(void)
 {
   // copy .data section to SRAM
-  uint8_t *pSramData = (uint8_t *)&_sdata;    // sram
-  uint8_t *pFlashData = (uint8_t *)&_la_data; // flash
   uint32_t data_size = (uint32_t)&_edata - (uint32_t)&_sdata;
-  for (uint32_t i = 0; i < data_size; i++)
-  {
-    *pSramData++ = *pFlashData++;
-  }
+  
+  std::copy(&_la_data, &_la_data + data_size, &_sdata);
 
   // init. the .bss section to zero in SRAM
-  uint32_t bss_size = (uint32_t)&_ebss - (uint32_t)&_sbss;
-  uint8_t *pBssData = (uint8_t *)&_sbss;
-  for (uint32_t i = 0; i < bss_size; i++)
-  {
-    *pBssData++ = 0;
-  }
-
+  std::fill(&_sbss, &_ebss, 0);
   // now invoke main
   main();
+  while (1)
+  {
+    __asm("nop");
+  }
+  
+}
+
+void *memcpy(void *dest, const void *src, size_t n)
+{
+    for (size_t i = 0; i < n; i++)
+    {
+        ((char*)dest)[i] = ((char*)src)[i];
+    }
+    return dest;
 }
